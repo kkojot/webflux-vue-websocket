@@ -9,12 +9,15 @@ import reactor.core.publisher.Mono;
 
 @Component
 public class ReactiveWebSocketHandler implements WebSocketHandler {
+
+    private final GreetingsService greetingsService = new GreetingsService();
+
     @Override
     public Mono<Void> handle(WebSocketSession webSocketSession) {
         final Flux<WebSocketMessage> message = webSocketSession
                 .receive()
                 .map(webSocketMessage -> webSocketMessage.getPayloadAsText())
-                .map(name -> "Hello, " + name + "!")
+                .map(helloMessage -> greetingsService.greeting(helloMessage))
                 .map(greetings -> webSocketSession.textMessage(greetings));
 
         return webSocketSession.send(message);
