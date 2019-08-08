@@ -11,13 +11,24 @@ import reactor.core.publisher.Mono;
 public class ReactiveWebSocketHandler implements WebSocketHandler {
 
     private final GreetingsService greetingsService = new GreetingsService();
+    private final GreetingsPublisher greetingsPublisher;
+    private final Flux<String> publisher;
+
+    public ReactiveWebSocketHandler(GreetingsPublisher greetingsPublisher) {
+        this.greetingsPublisher = greetingsPublisher;
+        this.publisher = Flux.create(greetingsPublisher).share();
+    }
 
     @Override
     public Mono<Void> handle(WebSocketSession webSocketSession) {
-        final Flux<WebSocketMessage> message = webSocketSession
+        webSocketSession
                 .receive()
                 .map(webSocketMessage -> webSocketMessage.getPayloadAsText())
                 .map(helloMessage -> greetingsService.greeting(helloMessage))
+                .doOnNext(greetings -> greetingsPublisher.push(greetings))
+                .subscribe();
+
+        final Flux<WebSocketMessage> message = publisher
                 .map(greetings -> webSocketSession.textMessage(greetings));
 
         return webSocketSession.send(message);
